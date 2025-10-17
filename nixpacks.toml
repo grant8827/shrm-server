@@ -1,5 +1,11 @@
-{
-  "providers": ["node"],
-  "buildCommand": "npm install --production",
-  "startCommand": "npm start"
-}
+# Nixpacks configuration for SHRM Server
+providers = ["node"]
+
+[phases.build]
+cmds = ["npm install --production"]
+
+[phases.start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
