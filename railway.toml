@@ -1,0 +1,38 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[variables]
+NODE_ENV = "production"
+PORT = "8080"
+
+# MongoDB (Railway will provide this)
+# MONGODB_URI will be set by Railway MongoDB service
+
+# JWT Configuration
+JWT_SECRET = "shrm_production_jwt_secret_key_2024_very_secure"
+JWT_EXPIRE = "30d"
+
+# Email Configuration
+EMAIL_HOST = "webhosting2023.is.cc"
+EMAIL_PORT = "587"
+EMAIL_SECURE = "false"
+EMAIL_USER = "info@safehavenrestorationministries.com"
+CONTACT_EMAIL = "info@safehavenrestorationministries.com"
+ADMIN_EMAIL = "info@safehavenrestorationministries.com"
+
+# Client URL (update with your frontend domain)
+CLIENT_URL = "https://your-netlify-domain.netlify.app"
+
+# Security
+BCRYPT_ROUNDS = "12"
+RATE_LIMIT_WINDOW = "900000"
+RATE_LIMIT_MAX = "100"
+
+# File Upload
+MAX_FILE_SIZE = "10000000"
+ALLOWED_FILE_TYPES = "image/jpeg,image/png,image/gif,application/pdf"

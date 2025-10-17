@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
 // Trust proxy for Railway deployment
 app.set('trust proxy', 1);
@@ -94,6 +94,9 @@ app.use('*', (req, res) => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`SHRM Counseling Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`MongoDB URI configured: ${process.env.MONGODB_URI ? 'Yes' : 'No'}`);
+  console.log(`Email configured: ${process.env.EMAIL_HOST ? 'Yes' : 'No'}`);
+  console.log(`Server URL: http://0.0.0.0:${PORT}`);
 });
 
 // Graceful shutdown handling
