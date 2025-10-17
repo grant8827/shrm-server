@@ -3,17 +3,40 @@ const { body, validationResult } = require('express-validator');
 const nodemailer = require('nodemailer');
 const router = express.Router();
 
-// Configure email transporter (using environment variables)
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: process.env.EMAIL_PORT || 587,
-    secure: false,
+// Configure email transporter with connection verification
+const createTransporter = async () => {
+  const config = {
+    host: process.env.EMAIL_HOST || 'webhosting2023.is.cc',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true' || false, // Use STARTTLS for port 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
+    },
+    tls: {
+      rejectUnauthorized: false // Accept self-signed certificates
     }
+  };
+  
+  console.log('📧 Email config:', {
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    user: config.auth.user,
+    passConfigured: !!config.auth.pass
   });
+  
+  const transporter = nodemailer.createTransport(config);
+  
+  try {
+    console.log('🔗 Verifying SMTP connection...');
+    await transporter.verify();
+    console.log('✅ SMTP connection verified successfully');
+    return transporter;
+  } catch (error) {
+    console.error('❌ SMTP verification failed:', error.message);
+    throw error;
+  }
 };
 
 // @route   POST /api/contact
@@ -132,16 +155,39 @@ router.post('/', [
 
     // Only send emails if email configuration is available
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const transporter = createTransporter();
+      console.log('🔄 Attempting to send contact form emails...');
       
-      // Send notification email to SHRM
-      await transporter.sendMail(emailContent);
+      try {
+        const transporter = await createTransporter();
+        
+        // Connection is already verified in createTransporter
+        console.log('✅ Email transporter ready');
+        
+        // Send notification email to SHRM
+        console.log('📧 Sending notification email to SHRM...');
+        const notificationResult = await transporter.sendMail(emailContent);
+        console.log('✅ Notification email sent:', notificationResult.messageId);
+        
+        // Send auto-reply to user
+        console.log('📧 Sending auto-reply to user...');
+        const autoReplyResult = await transporter.sendMail(autoReplyContent);
+        console.log('✅ Auto-reply email sent:', autoReplyResult.messageId);
+        
+        console.log('🎉 All emails sent successfully');
+        
+      } catch (emailError) {
+        console.error('❌ Email sending failed:', emailError.message);
+        console.error('Email error details:', emailError);
+        
+        // Still return success to user, but log the email failure
+        console.log('📝 Contact form data saved despite email failure:', { name, email, phone, subject, message });
+      }
       
-      // Send auto-reply to user
-      await transporter.sendMail(autoReplyContent);
     } else {
-      console.log('Email configuration not found, emails not sent');
-      console.log('Contact form submission:', { name, email, phone, subject, message });
+      console.log('⚠️ Email configuration not found, emails not sent');
+      console.log('Missing EMAIL_USER:', !process.env.EMAIL_USER);
+      console.log('Missing EMAIL_PASS:', !process.env.EMAIL_PASS);
+      console.log('📝 Contact form submission logged:', { name, email, phone, subject, message });
     }
 
     res.json({

@@ -2,10 +2,162 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
+const nodemailer = require('nodemailer');
 const router = express.Router();
 
 // Middleware to verify JWT token
 const auth = require('../middleware/auth');
+
+// Configure email transporter
+const createTransporter = () => {
+  const config = {
+    host: process.env.EMAIL_HOST || 'webhosting2023.is.cc',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true' || false, // Use STARTTLS for port 587
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    tls: {
+      rejectUnauthorized: false // Accept self-signed certificates
+    }
+  };
+  
+  return nodemailer.createTransport(config);
+};
+
+// Helper function to send appointment emails
+const sendAppointmentEmails = async (appointment, client, counselor) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log('⚠️ Email configuration not found for appointment emails');
+    return;
+  }
+  
+  try {
+    console.log('📧 Sending appointment confirmation emails...');
+    const transporter = createTransporter();
+    
+    // Email to client
+    const clientEmailContent = {
+      from: process.env.EMAIL_USER,
+      to: client.email,
+      subject: 'SHRM - Appointment Request Received',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3c4535; border-bottom: 2px solid #fac800; padding-bottom: 10px;">
+            Appointment Request Received
+          </h2>
+          
+          <p>Dear ${client.firstName} ${client.lastName},</p>
+          
+          <p>Thank you for scheduling an appointment with Safe Haven Restoration Ministries. We have received your request and will contact you within 24 hours to confirm your appointment details.</p>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #3c4535; margin-top: 0;">Appointment Details</h3>
+            <p><strong>Service:</strong> ${getServiceName(appointment.serviceType)}</p>
+            <p><strong>Preferred Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+            <p><strong>Preferred Time:</strong> ${appointment.startTime}</p>
+            <p><strong>Session Type:</strong> ${appointment.sessionType.replace('-', ' ')}</p>
+            <p><strong>Counselor:</strong> ${counselor.firstName} ${counselor.lastName}</p>
+          </div>
+          
+          <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="color: #2d5a2d; margin-top: 0;">What's Next?</h4>
+            <ul style="color: #2d5a2d;">
+              <li>Our team will review your appointment request</li>
+              <li>We'll call you within 24 hours to confirm the time and details</li>
+              <li>You'll receive a final confirmation email with all the details</li>
+            </ul>
+          </div>
+          
+          <div style="margin: 30px 0;">
+            <h3 style="color: #3c4535;">Contact Information</h3>
+            <p>
+              <strong>Phone:</strong> (555) 123-4567<br>
+              <strong>Email:</strong> info@safehavenrestorationministries.com
+            </p>
+          </div>
+          
+          <p>Blessings,<br>The SHRM Team</p>
+          
+          <div style="margin-top: 30px; padding: 15px; background: #f5f5f5; border-radius: 5px; font-size: 12px; color: #666;">
+            <p>Safe Haven Restoration Ministries - Providing hope, healing, and restoration through Christ-centered counseling.</p>
+          </div>
+        </div>
+      `
+    };
+    
+    // Email to admin/counselor
+    const adminEmailContent = {
+      from: process.env.EMAIL_USER,
+      to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
+      subject: 'SHRM - New Appointment Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3c4535; border-bottom: 2px solid #fac800; padding-bottom: 10px;">
+            New Appointment Request
+          </h2>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #3c4535; margin-top: 0;">Client Information</h3>
+            <p><strong>Name:</strong> ${client.firstName} ${client.lastName}</p>
+            <p><strong>Email:</strong> ${client.email}</p>
+            <p><strong>Phone:</strong> ${client.phone}</p>
+            ${client.dateOfBirth ? `<p><strong>Date of Birth:</strong> ${new Date(client.dateOfBirth).toLocaleDateString()}</p>` : ''}
+          </div>
+          
+          <div style="background: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #856404; margin-top: 0;">Appointment Details</h3>
+            <p><strong>Service Type:</strong> ${getServiceName(appointment.serviceType)}</p>
+            <p><strong>Preferred Date:</strong> ${new Date(appointment.appointmentDate).toLocaleDateString()}</p>
+            <p><strong>Preferred Time:</strong> ${appointment.startTime}</p>
+            <p><strong>Session Type:</strong> ${appointment.sessionType.replace('-', ' ')}</p>
+            <p><strong>Assigned Counselor:</strong> ${counselor.firstName} ${counselor.lastName}</p>
+            ${appointment.isEmergency ? '<p style="color: #dc3545;"><strong>⚠️ EMERGENCY REQUEST</strong></p>' : ''}
+          </div>
+          
+          ${appointment.notes.client ? `
+          <div style="background: #e3f2fd; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #1565c0; margin-top: 0;">Client Notes</h3>
+            <p>${appointment.notes.client}</p>
+          </div>
+          ` : ''}
+          
+          <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h4 style="margin-top: 0;">Action Required</h4>
+            <p>Please contact the client within 24 hours to confirm the appointment details.</p>
+            <p><strong>Appointment ID:</strong> ${appointment._id}</p>
+          </div>
+        </div>
+      `
+    };
+    
+    // Send both emails
+    await transporter.sendMail(clientEmailContent);
+    console.log('✅ Client confirmation email sent');
+    
+    await transporter.sendMail(adminEmailContent);
+    console.log('✅ Admin notification email sent');
+    
+  } catch (emailError) {
+    console.error('❌ Failed to send appointment emails:', emailError.message);
+  }
+};
+
+// Helper function to get service name
+const getServiceName = (serviceType) => {
+  const serviceNames = {
+    'individual-counseling': 'Individual Counseling',
+    'couples-counseling': 'Couples Counseling',
+    'family-counseling': 'Family Counseling',
+    'group-therapy': 'Group Therapy',
+    'crisis-intervention': 'Crisis Intervention',
+    'addiction-counseling': 'Addiction Counseling',
+    'grief-counseling': 'Grief Counseling',
+    'youth-counseling': 'Youth Counseling'
+  };
+  return serviceNames[serviceType] || serviceType;
+};
 
 // @route   POST /api/appointments
 // @desc    Create a new appointment
@@ -90,6 +242,10 @@ router.post('/', [
 
     // Populate the appointment with user details
     await appointment.populate(['client', 'counselor']);
+
+    // Send appointment confirmation emails
+    console.log('📧 Sending appointment confirmation emails...');
+    await sendAppointmentEmails(appointment, appointment.client, appointment.counselor);
 
     res.json({
       success: true,
