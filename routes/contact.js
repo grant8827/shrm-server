@@ -58,7 +58,7 @@ const createTransporter = async () => {
 router.post('/', [
   body('name').trim().isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('phone').optional().isMobilePhone().withMessage('Valid phone number required'),
+  body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Valid phone number required'),
   body('subject').isIn([
     'appointment',
     'services', 
@@ -70,8 +70,16 @@ router.post('/', [
   body('message').trim().isLength({ min: 10, max: 1000 }).withMessage('Message must be 10-1000 characters')
 ], async (req, res) => {
   try {
+    // Log incoming request for debugging
+    console.log('📥 Contact form request received:');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors found:');
+      console.log('Errors:', JSON.stringify(errors.array(), null, 2));
+      
       return res.status(400).json({ 
         success: false, 
         message: 'Validation errors',
