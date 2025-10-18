@@ -51,12 +51,22 @@ mongoose.connection.on('reconnected', () => {
   console.log('MongoDB reconnected');
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/appointments', require('./routes/appointments'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/services', require('./routes/services'));
-app.use('/api/contact', require('./routes/contact'));
+// Error handling wrapper for routes
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+// Routes with error handling
+try {
+  app.use('/api/auth', require('./routes/auth'));
+  app.use('/api/appointments', require('./routes/appointments'));
+  app.use('/api/users', require('./routes/users'));
+  app.use('/api/services', require('./routes/services'));
+  app.use('/api/contact', require('./routes/contact'));
+} catch (error) {
+  console.error('Error loading routes:', error);
+  process.exit(1);
+}
 
 // Root health check endpoint for Railway
 app.get('/', (req, res) => {
@@ -103,20 +113,33 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 const gracefulShutdown = (signal) => {
   console.log(`Received ${signal}. Starting graceful shutdown...`);
   
-  server.close((err) => {
-    if (err) {
-      console.error('Error during server shutdown:', err);
-      process.exit(1);
-    }
-    
-    console.log('HTTP server closed.');
-    
-    // Close MongoDB connection
+  // Check if server is actually running before trying to close it
+  if (server.listening) {
+    server.close((err) => {
+      if (err) {
+        console.error('Error during server shutdown:', err);
+      } else {
+        console.log('HTTP server closed.');
+      }
+      closeMongoAndExit();
+    });
+  } else {
+    console.log('Server was not running.');
+    closeMongoAndExit();
+  }
+};
+
+// Helper function to close MongoDB and exit
+const closeMongoAndExit = () => {
+  if (mongoose.connection.readyState !== 0) {
     mongoose.connection.close(() => {
       console.log('MongoDB connection closed.');
       process.exit(0);
     });
-  });
+  } else {
+    console.log('MongoDB connection already closed.');
+    process.exit(0);
+  }
 };
 
 // Handle process termination signals
@@ -132,6 +155,17 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  console.error('Uncaught Exception occurred:');
+  console.error('Error message:', error.message);
+  console.error('Stack trace:', error.stack);
+  console.error('Error code:', error.code);
+  
+  // Don't exit immediately, try to identify the source
+  if (error.code === 'EADDRINUSE') {
+    console.error('Port is already in use. Try a different port.');
+  } else if (error.code === 'ECONNREFUSED') {
+    console.error('Database connection refused. Check MongoDB connection.');
+  }
+  
   gracefulShutdown('uncaughtException');
 });
