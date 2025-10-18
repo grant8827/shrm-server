@@ -5,6 +5,14 @@ const router = express.Router();
 
 // Configure email transporter with connection verification
 const createTransporter = async () => {
+  // Log environment check for debugging
+  console.log('🔍 Environment check:');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('EMAIL_HOST exists:', !!process.env.EMAIL_HOST);
+  console.log('EMAIL_USER exists:', !!process.env.EMAIL_USER);
+  console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
+  console.log('EMAIL_PORT:', process.env.EMAIL_PORT);
+  
   const config = {
     host: process.env.EMAIL_HOST || 'webhosting2023.is.cc',
     port: parseInt(process.env.EMAIL_PORT) || 587,
@@ -26,7 +34,12 @@ const createTransporter = async () => {
     passConfigured: !!config.auth.pass
   });
   
-  const transporter = nodemailer.createTransport(config);
+  if (!config.auth.user || !config.auth.pass) {
+    console.error('❌ Missing email credentials in environment variables!');
+    throw new Error('Email configuration incomplete - missing EMAIL_USER or EMAIL_PASS');
+  }
+  
+  const transporter = nodemailer.createTransporter(config);
   
   try {
     console.log('🔗 Verifying SMTP connection...');
@@ -196,10 +209,28 @@ router.post('/', [
     });
 
   } catch (error) {
-    console.error('Contact form error:', error);
+    console.error('❌ Contact form error:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    
+    let errorMessage = 'Sorry, there was an error sending your message. Please try again or call us directly at (555) 123-4567.';
+    
+    // Provide more specific error messages for debugging
+    if (error.message.includes('Email configuration incomplete')) {
+      console.error('🚨 Email environment variables missing in production!');
+      errorMessage = 'Email service temporarily unavailable. Please call us directly at (555) 123-4567.';
+    } else if (error.code === 'EAUTH') {
+      console.error('🚨 Email authentication failed - check EMAIL_USER and EMAIL_PASS');
+    } else if (error.code === 'ECONNREFUSED') {
+      console.error('🚨 Cannot connect to email server - check EMAIL_HOST and EMAIL_PORT');
+    } else if (error.code === 'ETIMEOUT') {
+      console.error('🚨 Email server timeout - check network connectivity');
+    }
+    
     res.status(500).json({
       success: false,
-      message: 'Sorry, there was an error sending your message. Please try again or call us directly at (555) 123-4567.'
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
