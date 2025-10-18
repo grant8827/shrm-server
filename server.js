@@ -22,9 +22,28 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Middleware
+// Middleware with flexible CORS configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001', 
+  'https://safehavenrestorationministries.com',
+  'https://www.safehavenrestorationministries.com',
+  process.env.CLIENT_URL
+].filter(Boolean); // Remove any undefined values
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', allowedOrigins);
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
