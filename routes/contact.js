@@ -59,14 +59,14 @@ router.post('/', [
   body('name').trim().isLength({ min: 2, max: 100 }).withMessage('Name must be 2-100 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('phone').optional({ nullable: true, checkFalsy: true }).isMobilePhone().withMessage('Valid phone number required'),
-  body('subject').isIn([
+  body('subject').notEmpty().isIn([
     'appointment',
     'services', 
     'insurance',
     'crisis',
     'feedback',
     'other'
-  ]).withMessage('Valid subject is required'),
+  ]).withMessage('Please select a valid subject'),
   body('message').trim().isLength({ min: 10, max: 1000 }).withMessage('Message must be 10-1000 characters')
 ], async (req, res) => {
   try {
