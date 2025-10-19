@@ -3,8 +3,8 @@ const { body, validationResult } = require('express-validator');
 const nodemailer = require('nodemailer');
 const router = express.Router();
 
-// Configure email transporter with connection verification
-const createTransporter = async () => {
+// Configure email transporter (simplified like appointments)
+const createTransporter = () => {
   // Log environment check for debugging
   console.log('🔍 Environment check:');
   console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -39,17 +39,7 @@ const createTransporter = async () => {
     throw new Error('Email configuration incomplete - missing EMAIL_USER or EMAIL_PASS');
   }
   
-  const transporter = nodemailer.createTransporter(config);
-  
-  try {
-    console.log('🔗 Verifying SMTP connection...');
-    await transporter.verify();
-    console.log('✅ SMTP connection verified successfully');
-    return transporter;
-  } catch (error) {
-    console.error('❌ SMTP verification failed:', error.message);
-    throw error;
-  }
+  return nodemailer.createTransporter(config);
 };
 
 // @route   POST /api/contact
@@ -179,9 +169,8 @@ router.post('/', [
       console.log('🔄 Attempting to send contact form emails...');
       
       try {
-        const transporter = await createTransporter();
+        const transporter = createTransporter();
         
-        // Connection is already verified in createTransporter
         console.log('✅ Email transporter ready');
         
         // Send notification email to SHRM
