@@ -132,7 +132,7 @@ router.post('/', [
             <ul>
               <li>A member of our team will review your message</li>
               <li>We'll respond to you within 24 hours (usually much sooner)</li>
-              <li>If this is urgent, please call us at (555) 123-4567</li>
+              <li>We appreciate your patience as we carefully review each inquiry</li>
             </ul>
           </div>
           
@@ -141,7 +141,7 @@ router.post('/', [
             <h4 style="color: #856404; margin-top: 0;">Crisis Support</h4>
             <p style="color: #856404; margin-bottom: 0;">
               If you are experiencing a mental health crisis or having thoughts of self-harm, 
-              please call our 24/7 crisis line at <strong>(555) 123-HELP</strong> or go to your nearest emergency room.
+              please contact emergency services immediately or go to your nearest emergency room.
             </p>
           </div>
           ` : ''}
@@ -149,9 +149,8 @@ router.post('/', [
           <div style="margin: 30px 0;">
             <h3 style="color: #34495e;">Contact Information</h3>
             <p>
-              <strong>Phone:</strong> (555) 123-4567<br>
-              <strong>Email:</strong> info@shrmcounseling.org<br>
-              <strong>Address:</strong> 123 Healing Way, Hope City, HC 12345
+              <strong>Email:</strong> info@safehavenrestorationministries.com<br>
+              <strong>Website:</strong> safehavenrestorationministries.com
             </p>
           </div>
           
@@ -210,12 +209,12 @@ router.post('/', [
     console.error('Error stack:', error.stack);
     console.error('Error code:', error.code);
     
-    let errorMessage = 'Sorry, there was an error sending your message. Please try again or call us directly at (555) 123-4567.';
+    let errorMessage = 'Sorry, there was an error sending your message. Please try again or contact us directly via email.';
     
     // Provide more specific error messages for debugging
     if (error.message.includes('Email configuration incomplete')) {
       console.error('🚨 Email environment variables missing in production!');
-      errorMessage = 'Email service temporarily unavailable. Please call us directly at (555) 123-4567.';
+      errorMessage = 'Email service temporarily unavailable. Please contact us directly via email.';
     } else if (error.code === 'EAUTH') {
       console.error('🚨 Email authentication failed - check EMAIL_USER and EMAIL_PASS');
     } else if (error.code === 'ECONNREFUSED') {
